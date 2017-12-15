@@ -5,10 +5,10 @@
 #define HT16K33_BLINK_DISPLAYON 0x01
 #define HT16K33_CMD_BRIGHTNESS 0xE0
 
-
-byte grid[] = {B00000000,
-               B00000000,
-               B00000000,
+//glider
+byte grid[] = {B01000000,
+               B00100000,
+               B11100000,
                B00000000,
                B00000000,
                B00000000,
