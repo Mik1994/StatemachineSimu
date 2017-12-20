@@ -1,0 +1,151 @@
+#include <Wire.h>
+#define ADDRESS 0x70
+
+#define HT16K33_BLINK_CMD 0x80
+#define HT16K33_BLINK_DISPLAYON 0x01
+#define HT16K33_CMD_BRIGHTNESS 0xE0
+
+//glider
+byte grid[] = {B00000001,
+               B00000100,
+               B00000111,
+               B00000000,
+               B00000000,
+               B00000000,
+               B00000000,
+               B00000000
+              };
+byte next[] = {B00000000,
+               B00000000,
+               B00000000,
+               B00000000,
+               B00000000,
+               B00000000,
+               B00000000,
+               B00000000
+              };
+
+void setup() {
+  Serial.begin(57600);
+  // TODO: set up your other stuff...
+  //Wire zeugs
+  Wire.begin();
+  // I2C oscillator on
+  Wire.beginTransmission(ADDRESS);
+  Wire.write(0x21);
+  Wire.endTransmission();
+  // Set Brightness (max brightness == 15)
+  Wire.beginTransmission(ADDRESS);
+  Wire.write(HT16K33_CMD_BRIGHTNESS | 14);
+  Wire.endTransmission();
+  // No blinking
+  Wire.beginTransmission(ADDRESS);
+  Wire.write(HT16K33_BLINK_CMD | HT16K33_BLINK_DISPLAYON);
+  Wire.endTransmission();
+}
+
+
+void loop() {
+  delay(800);
+  // WIRE zeugs
+  updateDisplay();
+  //Compute next based on cur grid
+
+  compute();
+  //delay(1000);
+}
+
+/**********************************************/
+/*            Game of Life                    */
+/**********************************************/
+unsigned int countNeighbors(int x, int y) {
+  int sum = 0;
+  for (int i = -1; i < 2; i++) {
+    for (int j = -1; j < 2; j++) {
+      if ( ((x + i < 8) && (x + i >= 0) ) && ( (y + j < 8) && (y + j >= 0) ))
+        sum += bitRead(grid[x + i], y + j);
+    }
+  }
+
+
+  return sum-=bitRead(grid[x ], y);
+}
+/**
+  int countIt(byte curGrid[], int x , int y){
+  int sum = 0;
+  for (int i = 0
+  }**/
+
+void compute() {
+  Serial.println("Nachbarn");
+
+  for (byte i = 0; i < 8; i++) {
+    for (byte j = 0; j < 8; j++) {
+      int neighbors = countNeighbors( i, j);
+      Serial.print(neighbors);
+
+      // Rules
+      if (bitRead(grid[i], j) == 1 && (neighbors < 2)) {
+        bitClear(next[i], j);
+      } else if (  (bitRead(grid[i], j) == 1) && ( (neighbors == 2) || (neighbors == 3) ) ) {
+        bitWrite(next[i], j, bitRead(grid[i], j));
+      } else if ( bitRead(grid[i], j) == 1 && (neighbors > 3) ) {
+        bitClear(next[i], j);
+      } else if (bitRead(grid[i], j) == 0 && (neighbors == 3) ) {
+        bitSet(next[i], j);
+      }
+
+    }
+    Serial.println();
+  }
+  dump();
+  Serial.println();
+  memcpy(grid, next, sizeof(grid));
+  //Doublebuffering
+  // byte[8][2] 
+  // und dann xor [0] oder [1]
+  //
+  
+
+}
+/**********************************************/
+/*             Update                         */
+/**********************************************/
+void updateDisplay() {
+
+  Wire.beginTransmission(ADDRESS);
+  Wire.write(0);  // Select base register
+  // FOR EACH ROW
+  for (int i = 0; i < 8; i++) {
+    // Achtung erste Spalte an der letzten Position im Zeilen-Bitvektor
+    //  Bit: 12345678 =>  23456781
+   // byte ic2 = ((grid[i] & 0x80) ? 0x01 : 0x00) | (grid[i]>>1 );
+    byte ic2 = (grid[i]>>1)|(grid[i]<<7);
+    Wire.write(ic2);
+    Wire.write(0);
+  }
+  Wire.endTransmission();
+
+}
+
+void dump() {
+  Serial.println("Grid");
+  for (byte i = 0; i < 8; i++) {
+    for (byte j = 0; j < 8; j++) {
+      Serial.print(bitRead(grid[i], j));
+      Serial.print(" ");
+    }
+    Serial.println();
+  }
+  Serial.println("Next");
+  for (byte i = 0; i < 8; i++) {
+    for (byte j = 0; j < 8; j++) {
+      Serial.print(bitRead(next[i], j));
+      Serial.print(" ");
+    }
+    Serial.println();
+
+  }
+  Serial.println();
+}
+
